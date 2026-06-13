@@ -127,16 +127,38 @@ export const useStore = create<AppState>()(
         })),
       
       addTask: (task) =>
-        set((state) => ({
-          tasks: [
-            ...state.tasks,
-            {
-              ...task,
-              id: generateId(),
-              createdAt: dayjs().toISOString(),
-            },
-          ],
-        })),
+        set((state) => {
+          const newTask: Task = {
+            ...task,
+            id: generateId(),
+            createdAt: dayjs().toISOString(),
+          };
+          
+          const updatedTasks = [...state.tasks, newTask];
+          const memberTasks = updatedTasks.filter((t) => t.assignedTo === task.assignedTo);
+          const completedCount = memberTasks.filter((t) => t.status === 'completed').length;
+          const totalCount = memberTasks.length;
+          
+          const onTimeTasks = memberTasks.filter((t) => 
+            t.status === 'completed' && t.completedAt && dayjs(t.completedAt).isBefore(dayjs(t.dueDate))
+          );
+          const onTimeRate = completedCount > 0 ? onTimeTasks.length / completedCount : 0;
+          
+          const updatedMembers = state.members.map((m) =>
+            m.id === task.assignedTo
+              ? { 
+                  ...m, 
+                  stats: { 
+                    totalTasks: totalCount, 
+                    completedTasks: completedCount, 
+                    onTimeRate 
+                  } 
+                }
+              : m
+          );
+          
+          return { tasks: updatedTasks, members: updatedMembers };
+        }),
       
       updateTask: (id, updates) =>
         set((state) => ({
@@ -163,7 +185,7 @@ export const useStore = create<AppState>()(
           const onTimeTasks = memberTasks.filter((t) => 
             t.status === 'completed' && t.completedAt && dayjs(t.completedAt).isBefore(dayjs(t.dueDate))
           );
-          const onTimeRate = totalCount > 0 ? onTimeTasks.length / completedCount : 0;
+          const onTimeRate = completedCount > 0 ? onTimeTasks.length / completedCount : 0;
           
           const updatedMembers = state.members.map((m) =>
             m.id === task.assignedTo

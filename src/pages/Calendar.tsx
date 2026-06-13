@@ -29,6 +29,26 @@ export default function Calendar() {
     return daysArray;
   }, [startDay, daysInMonth]);
   
+  const checkReminderHit = (reminder: any, date: any) => {
+    if (!reminder.isEnabled) return false;
+    
+    const dayOfWeek = date.day();
+    const dayOfMonth = date.date();
+    
+    switch (reminder.repeatType) {
+      case 'daily':
+        return true;
+      case 'weekly':
+        return reminder.weekDays?.includes(dayOfWeek) || false;
+      case 'monthly':
+        return dayOfMonth === 1;
+      case 'custom':
+        return date.diff(dayjs(reminder.createdAt), 'day') % (reminder.repeatInterval || 1) === 0;
+      default:
+        return false;
+    }
+  };
+  
   const getDateInfo = (day: number) => {
     const date = currentDate.date(day);
     const isToday = date.isSame(dayjs(), 'day');
@@ -43,10 +63,7 @@ export default function Calendar() {
     );
     
     const incompleteTasks = dayTasks.filter((t) => t.status !== 'completed');
-    const hasReminders = reminders.some((rem) => {
-      const remTime = dayjs(date.format('YYYY-MM-DD') + ' ' + rem.time);
-      return rem.isEnabled;
-    });
+    const hasReminders = reminders.some((rem) => checkReminderHit(rem, date));
     
     return {
       isToday,
@@ -72,7 +89,7 @@ export default function Calendar() {
         return 0;
       });
     
-    const dayReminders = reminders.filter((rem) => rem.isEnabled);
+    const dayReminders = reminders.filter((rem) => checkReminderHit(rem, selectedDate));
     
     return { records: dayRecords, tasks: dayTasks, reminders: dayReminders };
   }, [selectedDate, records, tasks, reminders]);

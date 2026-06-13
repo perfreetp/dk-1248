@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useStore } from '@/store';
 import Header from '@/components/Header';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, Trash2, AlertTriangle, Pill, Utensils, FileText, Save, ArrowRight } from 'lucide-react';
+import { Plus, Trash2, AlertTriangle, Pill, Utensils, FileText, Save, ArrowRight, Clock } from 'lucide-react';
 import dayjs from 'dayjs';
 
 const speciesOptions = [
@@ -24,11 +24,28 @@ export default function PetProfile() {
   const navigate = useNavigate();
   const { petId } = useParams();
   const pets = useStore((state) => state.pets);
+  const records = useStore((state) => state.records);
   const addPet = useStore((state) => state.addPet);
   const updatePet = useStore((state) => state.updatePet);
   
   const isEditing = !!petId;
   const existingPet = pets.find((p) => p.id === petId);
+  
+  const recentMedicationRecords = useMemo(() => {
+    if (!petId) return [];
+    return records
+      .filter((r) => r.petId === petId && r.type === 'medication')
+      .sort((a, b) => new Date(b.recordTime).getTime() - new Date(a.recordTime).getTime())
+      .slice(0, 5);
+  }, [records, petId]);
+  
+  const recentAbnormalRecords = useMemo(() => {
+    if (!petId) return [];
+    return records
+      .filter((r) => r.petId === petId && (r.type === 'allergy' || r.type === 'vomit' || r.isStarred))
+      .sort((a, b) => new Date(b.recordTime).getTime() - new Date(a.recordTime).getTime())
+      .slice(0, 5);
+  }, [records, petId]);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -49,7 +66,7 @@ export default function PetProfile() {
     careNotes: [] as string[],
   });
   
-  const [activeTab, setActiveTab] = useState<'basic' | 'allergy' | 'medication' | 'diet' | 'care'>('basic');
+  const [activeTab, setActiveTab] = useState<'basic' | 'allergy' | 'medication' | 'diet' | 'care' | 'recent'>('basic');
   
   useEffect(() => {
     if (existingPet && petId) {
@@ -175,6 +192,7 @@ export default function PetProfile() {
     { key: 'medication', label: '常用药', icon: Pill, badge: formData.medications.length },
     { key: 'diet', label: '饮食偏好', icon: Utensils },
     { key: 'care', label: '照护备注', icon: FileText, badge: formData.careNotes.length },
+    { key: 'recent', label: '最近记录', icon: Clock, badge: recentMedicationRecords.length + recentAbnormalRecords.length },
   ];
   
   return (
@@ -576,6 +594,99 @@ export default function PetProfile() {
                   </div>
                 )}
               </div>
+            </>
+          )}
+          
+          {activeTab === 'recent' && (
+            <>
+              {!isEditing ? (
+                <div className="card">
+                  <div className="text-center py-8 text-muted">
+                    <Clock className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p>请先保存宠物档案后查看最近记录</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {recentMedicationRecords.length > 0 && (
+                    <div className="card">
+                      <h3 className="font-bold text-text mb-3 flex items-center gap-2">
+                        <Pill className="w-5 h-5 text-purple-500" />
+                        喂药记录
+                      </h3>
+                      <div className="space-y-2">
+                        {recentMedicationRecords.map((record) => (
+                          <div key={record.id} className="p-3 bg-gray-50 rounded-xl">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-medium text-text">
+                                {record.content.medicineName || '未知药物'}
+                              </span>
+                              <span className="text-xs text-muted">
+                                {dayjs(record.recordTime).format('MM/DD HH:mm')}
+                              </span>
+                            </div>
+                            <div className="text-sm text-muted">
+                              剂量: {record.content.dosage || '-'}
+                              {record.content.completed !== undefined && (
+                                <span className={`ml-2 ${record.content.completed ? 'text-secondary' : 'text-danger'}`}>
+                                  {record.content.completed ? '✓ 已完成' : '✗ 未完成'}
+                                </span>
+                              )}
+                            </div>
+                            {record.notes && (
+                              <p className="text-xs text-muted mt-1 bg-yellow-50 p-2 rounded">{record.notes}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {recentAbnormalRecords.length > 0 && (
+                    <div className="card">
+                      <h3 className="font-bold text-danger mb-3 flex items-center gap-2">
+                        <AlertTriangle className="w-5 h-5" />
+                        异常记录
+                      </h3>
+                      <div className="space-y-2">
+                        {recentAbnormalRecords.map((record) => (
+                          <div key={record.id} className="p-3 bg-danger bg-opacity-5 rounded-xl border border-danger">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-medium text-danger">
+                                {record.type === 'allergy' ? '过敏反应' : record.type === 'vomit' ? '呕吐记录' : '异常标记'}
+                              </span>
+                              <span className="text-xs text-muted">
+                                {dayjs(record.recordTime).format('MM/DD HH:mm')}
+                              </span>
+                            </div>
+                            <p className="text-sm text-text">
+                              {record.content.description || record.content.reaction || '无描述'}
+                            </p>
+                            {record.notes && (
+                              <p className="text-xs text-muted mt-1">{record.notes}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {recentMedicationRecords.length === 0 && recentAbnormalRecords.length === 0 && (
+                    <div className="card">
+                      <div className="text-center py-8 text-muted">
+                        <Clock className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                        <p>暂无最近记录</p>
+                        <button
+                          onClick={() => navigate('/record/new?petId=' + petId)}
+                          className="btn-primary mt-4"
+                        >
+                          添加记录
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>

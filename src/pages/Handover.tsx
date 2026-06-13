@@ -1,8 +1,10 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { useStore } from '@/store';
 import Header from '@/components/Header';
-import { FileText, Download, Printer, Check, Calendar } from 'lucide-react';
+import { Download, Printer, Image } from 'lucide-react';
 import dayjs from 'dayjs';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 export default function Handover() {
   const pets = useStore((state) => state.pets);
@@ -11,9 +13,9 @@ export default function Handover() {
   
   const [startDate, setStartDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [endDate, setEndDate] = useState(dayjs().add(7, 'day').format('YYYY-MM-DD'));
-  const [selectedPets, setSelectedPets] = useState<string[]>(pets.map((p) => p.id));
+  const [selectedPets, setSelectedPets] = useState<string[]>([]);
   const [showPreview, setShowPreview] = useState(false);
-  const [contentOptions, setContentOptions] = useState({
+  const contentOptionsInit = {
     basicInfo: true,
     healthStatus: true,
     allergies: true,
@@ -23,7 +25,12 @@ export default function Handover() {
     recentTasks: true,
     abnormalRecords: true,
     medication: true,
-  });
+  };
+  const [contentOptions, setContentOptions] = useState(contentOptionsInit);
+  
+  const effectivePets = useMemo(() => {
+    return selectedPets.length === 0 ? pets : pets.filter((p) => selectedPets.includes(p.id));
+  }, [selectedPets, pets]);
   
   const togglePet = (petId: string) => {
     setSelectedPets((prev) =>
@@ -42,24 +49,24 @@ export default function Handover() {
   };
   
   const filteredRecords = useMemo(() => {
+    const petIds = effectivePets.map((p) => p.id);
     return records.filter((record) => {
       const recordDate = dayjs(record.recordTime);
       const isInRange = recordDate.isAfter(dayjs(startDate).subtract(1, 'day')) &&
                        recordDate.isBefore(dayjs(endDate).add(1, 'day'));
-      const isSelectedPet = selectedPets.length === 0 || selectedPets.includes(record.petId);
-      return isInRange && isSelectedPet;
+      return isInRange && petIds.includes(record.petId);
     });
-  }, [records, startDate, endDate, selectedPets]);
+  }, [records, startDate, endDate, effectivePets]);
   
   const filteredTasks = useMemo(() => {
+    const petIds = effectivePets.map((p) => p.id);
     return tasks.filter((task) => {
       const dueDate = dayjs(task.dueDate);
       const isInRange = dueDate.isAfter(dayjs(startDate).subtract(1, 'day')) &&
                        dueDate.isBefore(dayjs(endDate).add(1, 'day'));
-      const isSelectedPet = !task.petId || selectedPets.length === 0 || selectedPets.includes(task.petId);
-      return isInRange && isSelectedPet;
+      return isInRange && (!task.petId || petIds.includes(task.petId));
     });
-  }, [tasks, startDate, endDate, selectedPets]);
+  }, [tasks, startDate, endDate, effectivePets]);
   
   const abnormalRecords = useMemo(() => {
     return filteredRecords.filter((r) => r.isStarred);
@@ -70,45 +77,74 @@ export default function Handover() {
   }, [filteredRecords]);
   
   const generatePreview = () => {
-    if (selectedPets.length === 0) {
-      alert('请选择至少一只宠物');
+    if (effectivePets.length === 0) {
+      alert('没有可交接的宠物');
       return;
     }
     setShowPreview(true);
   };
   
-  const handlePrint = () => {
-    window.print();
+  const handleDownloadPDF = async () => {
+    const element = document.getElementById('handover-preview');
+    if (!element) return;
+    
+    try {
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgWidth = 210;
+      const pageHeight = 297;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+      
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      
+      pdf.save(`宠物看护交接单_${dayjs().format('YYYYMMDD')}.pdf`);
+    } catch (error) {
+      console.error('生成PDF失败:', error);
+      alert('生成PDF失败，请重试');
+    }
   };
   
-  const handleDownload = () => {
-    const printContent = document.getElementById('handover-preview');
-    if (!printContent) return;
+  const handleDownloadImage = async () => {
+    const element = document.getElementById('handover-preview');
+    if (!element) return;
     
-    const originalContents = document.body.innerHTML;
-    const printContents = printContent.innerHTML;
-    
-    const printStyle = `
-      <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif; padding: 20px; }
-        h1 { font-size: 24px; margin-bottom: 8px; }
-        h2 { font-size: 18px; margin-top: 16px; margin-bottom: 8px; color: #333; }
-        h3 { font-size: 14px; margin-top: 12px; margin-bottom: 6px; }
-        p { margin: 4px 0; }
-        .text-muted { color: #666; }
-        .text-danger { color: #dc3545; }
-        .text-warning { color: #ffc107; }
-        .text-secondary { color: #28a745; }
-        .bg-danger { background-color: #f8d7da; }
-        .bg-warning { background-color: #fff3cd; }
-        .bg-secondary { background-color: #d4edda; }
-      </style>
-    `;
-    
-    document.body.innerHTML = printStyle + printContents;
+    try {
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+      
+      const link = document.createElement('a');
+      link.download = `宠物看护交接单_${dayjs().format('YYYYMMDD')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (error) {
+      console.error('生成长图失败:', error);
+      alert('生成长图失败，请重试');
+    }
+  };
+  
+  const handlePrint = () => {
     window.print();
-    document.body.innerHTML = originalContents;
-    window.location.reload();
   };
   
   const contentLabels: Record<string, string> = {
@@ -180,7 +216,7 @@ export default function Handover() {
               ))}
             </div>
             <p className="text-sm text-muted mt-2">
-              已选择 {selectedPets.length} 只宠物
+              {selectedPets.length === 0 ? '留空将包含全部宠物' : `已选择 ${selectedPets.length} 只宠物`}
             </p>
           </div>
           
@@ -207,7 +243,7 @@ export default function Handover() {
             <h3 className="font-bold text-text mb-4">交接单预览</h3>
             <div className="space-y-2 text-sm text-muted">
               <div>📅 交接时间: {dayjs(startDate).format('YYYY年MM月DD日')} - {dayjs(endDate).format('YYYY年MM月DD日')}</div>
-              <div>🐾 宠物数量: {selectedPets.length} 只</div>
+              <div>🐾 宠物数量: {effectivePets.length} 只</div>
               <div>📝 相关记录: {filteredRecords.length} 条</div>
               <div>✅ 待办任务: {filteredTasks.length} 项</div>
               {abnormalRecords.length > 0 && (
@@ -232,21 +268,18 @@ export default function Handover() {
                 {dayjs(startDate).format('YYYY年MM月DD日')} - {dayjs(endDate).format('YYYY年MM月DD日')}
               </p>
               <p className="text-xs text-muted mt-1">
-                共 {selectedPets.length} 只宠物
+                共 {effectivePets.length} 只宠物
               </p>
             </div>
             
-            {selectedPets.map((petId) => {
-              const pet = pets.find((p) => p.id === petId);
-              if (!pet) return null;
-              
-              const petRecords = filteredRecords.filter((r) => r.petId === petId);
-              const petTasks = filteredTasks.filter((t) => t.petId === petId);
+            {effectivePets.map((pet) => {
+              const petRecords = filteredRecords.filter((r) => r.petId === pet.id);
+              const petTasks = filteredTasks.filter((t) => t.petId === pet.id);
               const petAbnormal = petRecords.filter((r) => r.isStarred);
               const petMedication = petRecords.filter((r) => r.type === 'medication');
               
               return (
-                <div key={petId} className="mb-6 last:mb-0 border-b border-gray-100 pb-4 last:border-b-0">
+                <div key={pet.id} className="mb-6 last:mb-0 border-b border-gray-100 pb-4 last:border-b-0">
                   <h2 className="text-xl font-bold text-text mb-3 flex items-center gap-2">
                     <span className="w-3 h-3 bg-primary rounded-full"></span>
                     {pet.name}
@@ -398,15 +431,21 @@ export default function Handover() {
             <button onClick={() => setShowPreview(false)} className="btn-secondary flex-1">
               返回修改
             </button>
-            <button onClick={handleDownload} className="btn-primary flex-1 flex items-center justify-center gap-2">
+            <button onClick={handleDownloadPDF} className="btn-primary flex-1 flex items-center justify-center gap-2">
               <Download className="w-4 h-4" />
               下载PDF
             </button>
           </div>
-          <button onClick={handlePrint} className="btn-secondary w-full mt-3 flex items-center justify-center gap-2">
-            <Printer className="w-4 h-4" />
-            打印
-          </button>
+          <div className="flex gap-3 mt-3">
+            <button onClick={handleDownloadImage} className="btn-secondary flex-1 flex items-center justify-center gap-2">
+              <Image className="w-4 h-4" />
+              下载长图
+            </button>
+            <button onClick={handlePrint} className="btn-secondary flex-1 flex items-center justify-center gap-2">
+              <Printer className="w-4 h-4" />
+              打印
+            </button>
+          </div>
         </div>
       )}
     </div>
