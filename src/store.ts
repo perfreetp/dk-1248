@@ -71,16 +71,48 @@ export const useStore = create<AppState>()(
         })),
       
       addRecord: (record) =>
-        set((state) => ({
-          records: [
-            ...state.records,
-            {
-              ...record,
-              id: generateId(),
-              createdAt: dayjs().toISOString(),
-            },
-          ],
-        })),
+        set((state) => {
+          const newRecord: CareRecord = {
+            ...record,
+            id: generateId(),
+            createdAt: dayjs().toISOString(),
+          };
+          
+          let updatedPets = [...state.pets];
+          
+          if (record.type === 'weight' && record.content.weight) {
+            updatedPets = updatedPets.map((p) =>
+              p.id === record.petId
+                ? { ...p, weight: record.content.weight, updatedAt: dayjs().toISOString() }
+                : p
+            );
+          }
+          
+          if (record.isStarred) {
+            const hasRecentStarred = state.records.some(
+              (r) => r.petId === record.petId && r.isStarred && 
+              dayjs(r.recordTime).isAfter(dayjs().subtract(7, 'day'))
+            );
+            
+            if (!hasRecentStarred) {
+              updatedPets = updatedPets.map((p) =>
+                p.id === record.petId
+                  ? { ...p, healthStatus: 'attention' as const, updatedAt: dayjs().toISOString() }
+                  : p
+              );
+            }
+          }
+          
+          if (record.type === 'medication' && record.isStarred) {
+            updatedPets = updatedPets.map((p) =>
+              p.id === record.petId
+                ? { ...p, healthStatus: 'abnormal' as const, updatedAt: dayjs().toISOString() }
+                : p
+            );
+          }
+          
+          return { records: [...state.records, newRecord], pets: updatedPets };
+        }),
       
       updateRecord: (id, updates) =>
         set((state) => ({
@@ -114,13 +146,40 @@ export const useStore = create<AppState>()(
         })),
       
       completeTask: (id) =>
-        set((state) => ({
-          tasks: state.tasks.map((t) =>
+        set((state) => {
+          const task = state.tasks.find((t) => t.id === id);
+          if (!task || task.status === 'completed') return state;
+          
+          const updatedTasks = state.tasks.map((t) =>
             t.id === id
               ? { ...t, status: 'completed' as const, completedAt: dayjs().toISOString() }
               : t
-          ),
-        })),
+          );
+          
+          const memberTasks = updatedTasks.filter((t) => t.assignedTo === task.assignedTo);
+          const completedCount = memberTasks.filter((t) => t.status === 'completed').length;
+          const totalCount = memberTasks.length;
+          
+          const onTimeTasks = memberTasks.filter((t) => 
+            t.status === 'completed' && t.completedAt && dayjs(t.completedAt).isBefore(dayjs(t.dueDate))
+          );
+          const onTimeRate = totalCount > 0 ? onTimeTasks.length / completedCount : 0;
+          
+          const updatedMembers = state.members.map((m) =>
+            m.id === task.assignedTo
+              ? { 
+                  ...m, 
+                  stats: { 
+                    totalTasks: totalCount, 
+                    completedTasks: completedCount, 
+                    onTimeRate 
+                  } 
+                }
+              : m
+          );
+          
+          return { tasks: updatedTasks, members: updatedMembers };
+        }),
       
       addReminder: (reminder) =>
         set((state) => ({

@@ -7,6 +7,8 @@ import Members from "@/pages/Members";
 import Reminders from "@/pages/Reminders";
 import Statistics from "@/pages/Statistics";
 import Handover from "@/pages/Handover";
+import PetProfile from "@/pages/PetProfile";
+import Calendar from "@/pages/Calendar";
 
 export default function App() {
   return (
@@ -20,6 +22,9 @@ export default function App() {
           <Route path="/reminders" element={<Reminders />} />
           <Route path="/statistics" element={<Statistics />} />
           <Route path="/handover" element={<Handover />} />
+          <Route path="/pet/new" element={<PetProfile />} />
+          <Route path="/pet/:petId" element={<PetProfile />} />
+          <Route path="/calendar" element={<Calendar />} />
         </Routes>
       </Layout>
     </Router>

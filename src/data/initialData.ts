@@ -8,9 +8,22 @@ export const initialPets: Pet[] = [
     species: 'cat',
     breed: '橘猫',
     age: 2,
+    birthDate: dayjs().subtract(2, 'year').format('YYYY-MM-DD'),
     gender: 'male',
     weight: 4.5,
     healthStatus: 'normal',
+    allergies: [
+      { allergen: '海鲜', reaction: '皮肤瘙痒', severity: 'moderate' }
+    ],
+    medications: [
+      { name: '复合维生素', dosage: '1片', frequency: '每天一次', purpose: '补充营养', startDate: dayjs().subtract(30, 'day').format('YYYY-MM-DD') }
+    ],
+    dietaryPreferences: {
+      foodTypes: ['猫粮', '罐头'],
+      avoidFoods: ['牛奶', '巧克力', '葡萄'],
+      feedingNotes: '喜欢少食多餐，每天约3-4顿'
+    },
+    careNotes: ['胆子较小，陌生人来访会躲藏', '喜欢晒太阳'],
     createdAt: dayjs().subtract(2, 'year').toISOString(),
     updatedAt: dayjs().toISOString(),
   },
@@ -20,9 +33,18 @@ export const initialPets: Pet[] = [
     species: 'dog',
     breed: '柴犬',
     age: 3,
+    birthDate: dayjs().subtract(3, 'year').format('YYYY-MM-DD'),
     gender: 'female',
     weight: 12.3,
     healthStatus: 'normal',
+    allergies: [],
+    medications: [],
+    dietaryPreferences: {
+      foodTypes: ['狗粮', '鸡肉'],
+      avoidFoods: ['洋葱', '大蒜'],
+      feedingNotes: '每天两顿，早晚各一次'
+    },
+    careNotes: ['处于发情期，注意隔离', '遛狗时喜欢追逐猫咪'],
     createdAt: dayjs().subtract(3, 'year').toISOString(),
     updatedAt: dayjs().toISOString(),
   },
@@ -32,9 +54,22 @@ export const initialPets: Pet[] = [
     species: 'rabbit',
     breed: '垂耳兔',
     age: 1,
+    birthDate: dayjs().subtract(1, 'year').format('YYYY-MM-DD'),
     gender: 'male',
     weight: 2.1,
     healthStatus: 'attention',
+    allergies: [
+      { allergen: '生菜', reaction: '腹泻', severity: 'mild' }
+    ],
+    medications: [
+      { name: '化毛膏', dosage: '2cm', frequency: '每周两次', purpose: '帮助排毛球' }
+    ],
+    dietaryPreferences: {
+      foodTypes: ['提摩西草', '苜蓿草', '兔粮'],
+      avoidFoods: ['生菜', '白菜'],
+      feedingNotes: '提摩西草无限量供应，每天更换新鲜饮水'
+    },
+    careNotes: ['最近软便，需要关注饮食', '喜欢啃咬电线，请收好'],
     createdAt: dayjs().subtract(1, 'year').toISOString(),
     updatedAt: dayjs().toISOString(),
   },

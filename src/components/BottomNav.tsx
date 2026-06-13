@@ -1,10 +1,10 @@
 import { NavLink } from 'react-router-dom';
-import { Home, PlusCircle, Clock, Users, Bell, BarChart3 } from 'lucide-react';
+import { Home, PlusCircle, Clock, Users, Bell, CalendarDays } from 'lucide-react';
 
 const navItems = [
   { path: '/', icon: Home, label: '首页' },
+  { path: '/calendar', icon: CalendarDays, label: '日历' },
   { path: '/record/new', icon: PlusCircle, label: '记录' },
-  { path: '/timeline', icon: Clock, label: '时间轴' },
   { path: '/members', icon: Users, label: '成员' },
   { path: '/reminders', icon: Bell, label: '提醒' },
 ];

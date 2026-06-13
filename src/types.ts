@@ -1,13 +1,37 @@
+export interface Allergy {
+  allergen: string;
+  reaction: string;
+  severity: 'mild' | 'moderate' | 'severe';
+}
+
+export interface Medication {
+  name: string;
+  dosage: string;
+  frequency: string;
+  purpose: string;
+  startDate?: string;
+  notes?: string;
+}
+
 export interface Pet {
   id: string;
   name: string;
   species: 'cat' | 'dog' | 'rabbit' | 'other';
   breed?: string;
   age: number;
+  birthDate?: string;
   gender: 'male' | 'female';
   avatar?: string;
   weight?: number;
   healthStatus: 'normal' | 'attention' | 'abnormal';
+  allergies: Allergy[];
+  medications: Medication[];
+  dietaryPreferences: {
+    foodTypes: string[];
+    avoidFoods: string[];
+    feedingNotes?: string;
+  };
+  careNotes: string[];
   createdAt: string;
   updatedAt: string;
 }
