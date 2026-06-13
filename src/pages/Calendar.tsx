@@ -44,7 +44,7 @@ export default function Calendar() {
         return reminder.weekDays?.includes(dayOfWeek) || false;
       case 'monthly':
         const reminderDay = reminder.repeatDay || 1;
-        return dayOfMonth === reminderDay || (dayOfMonth === 1 && reminderDay > daysInMonth);
+        return dayOfMonth === reminderDay;
       case 'custom':
         if (!reminder.repeatInterval || reminder.repeatInterval <= 0) return false;
         const daysSinceCreation = date.diff(dayjs(reminder.createdAt), 'day');
@@ -59,30 +59,45 @@ export default function Calendar() {
     const isToday = date.isSame(dayjs(), 'day');
     const isSelected = date.isSame(selectedDate, 'day');
     
-    const dayRecords = records.filter((r) =>
+    let dayRecords = records.filter((r) =>
       dayjs(r.recordTime).isSame(date, 'day')
     );
     
-    const dayTasks = tasks.filter((t) =>
+    let dayTasks = tasks.filter((t) =>
       dayjs(t.dueDate).isSame(date, 'day')
     );
     
+    let dayReminders = reminders.filter((rem) => checkReminderHit(rem, date));
+    
+    if (selectedMemberId !== 'all') {
+      const memberPetIds = pets
+        .filter((p) => tasks.some((t) => t.petId === p.id && t.assignedTo === selectedMemberId))
+        .map((p) => p.id);
+      
+      dayTasks = dayTasks.filter((t) => t.assignedTo === selectedMemberId);
+      dayReminders = dayReminders.filter((rem) => 
+        !rem.petId || memberPetIds.includes(rem.petId)
+      );
+      dayRecords = dayRecords.filter((r) => memberPetIds.includes(r.petId));
+    }
+    
     const incompleteTasks = dayTasks.filter((t) => t.status !== 'completed');
-    const hasReminders = reminders.some((rem) => checkReminderHit(rem, date));
+    const hasItems = dayTasks.length > 0 || dayReminders.length > 0 || dayRecords.length > 0;
     
     return {
       isToday,
       isSelected,
       records: dayRecords,
       tasks: dayTasks,
+      reminders: dayReminders,
       incompleteTasks,
-      hasReminders,
+      hasItems,
       hasStarred: dayRecords.some((r) => r.isStarred),
     };
   };
   
   const selectedDateInfo = useMemo(() => {
-    const dayRecords = records
+    let dayRecords = records
       .filter((r) => dayjs(r.recordTime).isSame(selectedDate, 'day'))
       .sort((a, b) => new Date(b.recordTime).getTime() - new Date(a.recordTime).getTime());
     
@@ -94,18 +109,19 @@ export default function Calendar() {
         return 0;
       });
     
-    if (selectedMemberId !== 'all') {
-      dayTasks = dayTasks.filter((t) => t.assignedTo === selectedMemberId);
-    }
-    
     let dayReminders = reminders.filter((rem) => checkReminderHit(rem, selectedDate));
     
     if (selectedMemberId !== 'all') {
-      dayReminders = dayReminders.filter((rem) => !rem.petId || 
-        pets.some((p) => p.id === rem.petId && 
-          tasks.some((t) => t.petId === p.id && t.assignedTo === selectedMemberId)
-        )
+      dayTasks = dayTasks.filter((t) => t.assignedTo === selectedMemberId);
+      
+      const memberPetIds = pets
+        .filter((p) => tasks.some((t) => t.petId === p.id && t.assignedTo === selectedMemberId))
+        .map((p) => p.id);
+      
+      dayReminders = dayReminders.filter((rem) => 
+        !rem.petId || memberPetIds.includes(rem.petId)
       );
+      dayRecords = dayRecords.filter((r) => memberPetIds.includes(r.petId));
     }
     
     return { records: dayRecords, tasks: dayTasks, reminders: dayReminders };
@@ -247,7 +263,7 @@ export default function Calendar() {
                           info.isSelected ? 'bg-white' : 'bg-danger'
                         }`} />
                       )}
-                      {info.hasReminders && (
+                      {info.reminders && info.reminders.length > 0 && (
                         <div className={`w-1.5 h-1.5 rounded-full ${
                           info.isSelected ? 'bg-white' : 'bg-secondary'
                         }`} />
@@ -295,8 +311,9 @@ export default function Calendar() {
             </span>
           </div>
           
-          {selectedDateInfo.records.length === 0 && 
-           selectedDateInfo.tasks.length === 0 ? (
+          {(selectedDateInfo.records.length === 0 && 
+           selectedDateInfo.tasks.length === 0 &&
+           selectedDateInfo.reminders.length === 0) ? (
             <div className="text-center py-8">
               <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
                 <CheckCircle2 className="w-8 h-8 text-gray-300" />

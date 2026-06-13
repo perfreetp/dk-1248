@@ -49,14 +49,27 @@ export default function Members() {
   const memberTasks = useMemo(() => {
     if (!selectedMemberId) return { pending: [], completed: [] };
     const memberTaskList = tasks.filter((t) => t.assignedTo === selectedMemberId);
-    return {
-      pending: memberTaskList.filter((t) => t.status !== 'completed'),
-      completed: memberTaskList.filter((t) => t.status === 'completed').slice(0, 20),
-    };
+    
+    const pending = memberTaskList
+      .filter((t) => t.status !== 'completed')
+      .sort((a, b) => dayjs(a.dueDate).valueOf() - dayjs(b.dueDate).valueOf());
+    
+    const completed = memberTaskList
+      .filter((t) => t.status === 'completed')
+      .sort((a, b) => dayjs(b.completedAt).valueOf() - dayjs(a.completedAt).valueOf())
+      .slice(0, 20);
+    
+    return { pending, completed };
   }, [tasks, selectedMemberId]);
   
-  const pendingTasks = tasks.filter((t) => t.status !== 'completed');
-  const completedTasks = tasks.filter((t) => t.status === 'completed').slice(0, 5);
+  const pendingTasks = tasks
+    .filter((t) => t.status !== 'completed')
+    .sort((a, b) => dayjs(a.dueDate).valueOf() - dayjs(b.dueDate).valueOf());
+  
+  const completedTasks = tasks
+    .filter((t) => t.status === 'completed')
+    .sort((a, b) => dayjs(b.completedAt).valueOf() - dayjs(a.completedAt).valueOf())
+    .slice(0, 10);
   
   const handleAddTask = () => {
     if (!newTask.title || !newTask.assignedTo) {
@@ -129,7 +142,10 @@ export default function Members() {
                       {stats.completed} 已完成
                     </span>
                   </div>
-                  <div className="text-xs text-muted mt-2">
+                  <div className="text-xs text-muted mt-1">
+                    共 {stats.total} 项任务
+                  </div>
+                  <div className="text-xs text-muted mt-1">
                     按时率: {(member.stats.onTimeRate * 100).toFixed(0)}%
                   </div>
                 </div>

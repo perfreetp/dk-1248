@@ -47,6 +47,15 @@ export default function PetProfile() {
       .slice(0, 5);
   }, [records, petId]);
   
+  const latestRecord = useMemo(() => {
+    if (!petId) return null;
+    const allRelevant = [...recentMedicationRecords, ...recentAbnormalRecords];
+    if (allRelevant.length === 0) return null;
+    return allRelevant.sort((a, b) => 
+      new Date(b.recordTime).getTime() - new Date(a.recordTime).getTime()
+    )[0];
+  }, [recentMedicationRecords, recentAbnormalRecords, petId]);
+  
   const [formData, setFormData] = useState({
     name: '',
     species: 'cat' as 'cat' | 'dog' | 'rabbit' | 'other',
@@ -238,56 +247,51 @@ export default function PetProfile() {
         <div className="space-y-4">
           {activeTab === 'basic' && (
             <>
-              {isEditing && (recentMedicationRecords.length > 0 || recentAbnormalRecords.length > 0) && (
+              {isEditing && latestRecord && (
                 <div className="card bg-yellow-50 border-2 border-yellow-200">
                   <h3 className="font-bold text-text mb-3 flex items-center gap-2">
                     <Clock className="w-5 h-5 text-warning" />
-                    最近处理
+                    最新处理 · {dayjs(latestRecord.recordTime).format('MM/DD HH:mm')}
                   </h3>
-                  {recentMedicationRecords.length > 0 && (
-                    <button
-                      onClick={() => setActiveTab('recent')}
-                      className="w-full text-left p-3 bg-white rounded-xl mb-2 hover:bg-yellow-100 transition-colors"
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2">
-                          <Pill className="w-4 h-4 text-purple-500" />
-                          <span className="font-medium text-text">最新喂药</span>
+                  <button
+                    onClick={() => setActiveTab('recent')}
+                    className="w-full text-left p-3 bg-white rounded-xl hover:bg-yellow-100 transition-colors"
+                  >
+                    {latestRecord.type === 'medication' ? (
+                      <>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <Pill className="w-4 h-4 text-purple-500" />
+                            <span className="font-medium text-text">喂药记录</span>
+                          </div>
                         </div>
-                        <span className="text-xs text-muted">
-                          {dayjs(recentMedicationRecords[0].recordTime).format('MM/DD HH:mm')}
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted">
-                        {recentMedicationRecords[0].content.medicineName || '未知药物'}
-                        {recentMedicationRecords[0].content.dosage && ` · ${recentMedicationRecords[0].content.dosage}`}
-                        <span className={`ml-2 ${recentMedicationRecords[0].content.completed ? 'text-secondary' : 'text-danger'}`}>
-                          {recentMedicationRecords[0].content.completed ? '✓ 已完成' : '✗ 未完成'}
-                        </span>
-                      </p>
-                    </button>
-                  )}
-                  {recentAbnormalRecords.length > 0 && (
-                    <button
-                      onClick={() => setActiveTab('recent')}
-                      className="w-full text-left p-3 bg-white rounded-xl hover:bg-yellow-100 transition-colors"
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2">
-                          <AlertTriangle className="w-4 h-4 text-danger" />
-                          <span className="font-medium text-danger">最新异常</span>
+                        <p className="text-sm text-muted">
+                          {latestRecord.content.medicineName || '未知药物'}
+                          {latestRecord.content.dosage && ` · ${latestRecord.content.dosage}`}
+                          <span className={`ml-2 ${latestRecord.content.completed ? 'text-secondary' : 'text-danger'}`}>
+                            {latestRecord.content.completed ? '✓ 已完成' : '✗ 未完成'}
+                          </span>
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4 text-danger" />
+                            <span className="font-medium text-danger">异常记录</span>
+                          </div>
                         </div>
-                        <span className="text-xs text-muted">
-                          {dayjs(recentAbnormalRecords[0].recordTime).format('MM/DD HH:mm')}
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted">
-                        {recentAbnormalRecords[0].type === 'allergy' ? '过敏反应' : 
-                         recentAbnormalRecords[0].type === 'vomit' ? '呕吐记录' : '异常标记'}
-                        {recentAbnormalRecords[0].content.description && ` · ${recentAbnormalRecords[0].content.description.slice(0, 20)}`}
-                      </p>
-                    </button>
-                  )}
+                        <p className="text-sm text-muted">
+                          {latestRecord.type === 'allergy' ? '过敏反应' : 
+                           latestRecord.type === 'vomit' ? '呕吐记录' : '异常标记'}
+                          {latestRecord.content.description && ` · ${latestRecord.content.description.slice(0, 20)}`}
+                        </p>
+                      </>
+                    )}
+                  </button>
+                  <p className="text-xs text-muted mt-2 text-center">
+                    共 {recentMedicationRecords.length + recentAbnormalRecords.length} 条记录 · 点击查看全部
+                  </p>
                 </div>
               )}
               
