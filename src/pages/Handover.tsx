@@ -10,11 +10,18 @@ export default function Handover() {
   const pets = useStore((state) => state.pets);
   const records = useStore((state) => state.records);
   const tasks = useStore((state) => state.tasks);
+  const members = useStore((state) => state.members);
   
   const [startDate, setStartDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [endDate, setEndDate] = useState(dayjs().add(7, 'day').format('YYYY-MM-DD'));
   const [selectedPets, setSelectedPets] = useState<string[]>([]);
   const [showPreview, setShowPreview] = useState(false);
+  const [handoverInfo, setHandoverInfo] = useState({
+    fromMember: '',
+    toMember: '',
+    toContact: '',
+    notes: '',
+  });
   const contentOptionsInit = {
     basicInfo: true,
     healthStatus: true,
@@ -184,6 +191,60 @@ export default function Handover() {
                   className="input"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+          
+          <div className="card">
+            <h3 className="font-bold text-text mb-4">👤 交接人信息</h3>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-text mb-2">交接人（谁交出去）</label>
+                  <select
+                    className="input"
+                    value={handoverInfo.fromMember}
+                    onChange={(e) => setHandoverInfo({ ...handoverInfo, fromMember: e.target.value })}
+                  >
+                    <option value="">选择交接人</option>
+                    {members.map((m) => (
+                      <option key={m.id} value={m.name}>{m.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-text mb-2">接手人（谁来照顾）</label>
+                  <select
+                    className="input"
+                    value={handoverInfo.toMember}
+                    onChange={(e) => setHandoverInfo({ ...handoverInfo, toMember: e.target.value })}
+                  >
+                    <option value="">选择接手人</option>
+                    {members.map((m) => (
+                      <option key={m.id} value={m.name}>{m.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-text mb-2">接手人联系方式</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="手机号或微信"
+                  value={handoverInfo.toContact}
+                  onChange={(e) => setHandoverInfo({ ...handoverInfo, toContact: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-text mb-2">交接备注</label>
+                <textarea
+                  className="input resize-none"
+                  rows={2}
+                  placeholder="补充说明..."
+                  value={handoverInfo.notes}
+                  onChange={(e) => setHandoverInfo({ ...handoverInfo, notes: e.target.value })}
                 />
               </div>
             </div>
@@ -418,6 +479,33 @@ export default function Handover() {
             })}
             
             <div className="mt-6 pt-4 border-t-2 border-gray-200">
+              <h3 className="font-bold text-text mb-4 text-center">👤 交接确认</h3>
+              <div className="grid grid-cols-2 gap-6 mb-6">
+                <div className="text-center">
+                  <p className="text-sm text-muted mb-2">交接人（移交方）</p>
+                  <p className="font-bold text-text mb-2">{handoverInfo.fromMember || '未填写'}</p>
+                  <div className="border-b-2 border-gray-300 h-12 flex items-end justify-center pb-1">
+                    <span className="text-xs text-muted">签字：</span>
+                  </div>
+                  <p className="text-xs text-muted mt-2">{dayjs().format('YYYY年MM月DD日')}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-muted mb-2">接手人（接收方）</p>
+                  <p className="font-bold text-text mb-2">{handoverInfo.toMember || '未填写'}</p>
+                  {handoverInfo.toContact && (
+                    <p className="text-xs text-muted mb-2">联系方式: {handoverInfo.toContact}</p>
+                  )}
+                  <div className="border-b-2 border-gray-300 h-12 flex items-end justify-center pb-1">
+                    <span className="text-xs text-muted">签字：</span>
+                  </div>
+                  <p className="text-xs text-muted mt-2">确认日期：___________</p>
+                </div>
+              </div>
+              {handoverInfo.notes && (
+                <div className="bg-yellow-50 p-3 rounded-lg mb-4">
+                  <p className="text-sm text-text"><strong>交接备注：</strong>{handoverInfo.notes}</p>
+                </div>
+              )}
               <p className="text-sm text-muted text-center">
                 📅 生成时间: {dayjs().format('YYYY年MM月DD日 HH:mm')}
               </p>

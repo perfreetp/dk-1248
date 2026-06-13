@@ -238,6 +238,59 @@ export default function PetProfile() {
         <div className="space-y-4">
           {activeTab === 'basic' && (
             <>
+              {isEditing && (recentMedicationRecords.length > 0 || recentAbnormalRecords.length > 0) && (
+                <div className="card bg-yellow-50 border-2 border-yellow-200">
+                  <h3 className="font-bold text-text mb-3 flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-warning" />
+                    最近处理
+                  </h3>
+                  {recentMedicationRecords.length > 0 && (
+                    <button
+                      onClick={() => setActiveTab('recent')}
+                      className="w-full text-left p-3 bg-white rounded-xl mb-2 hover:bg-yellow-100 transition-colors"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <Pill className="w-4 h-4 text-purple-500" />
+                          <span className="font-medium text-text">最新喂药</span>
+                        </div>
+                        <span className="text-xs text-muted">
+                          {dayjs(recentMedicationRecords[0].recordTime).format('MM/DD HH:mm')}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted">
+                        {recentMedicationRecords[0].content.medicineName || '未知药物'}
+                        {recentMedicationRecords[0].content.dosage && ` · ${recentMedicationRecords[0].content.dosage}`}
+                        <span className={`ml-2 ${recentMedicationRecords[0].content.completed ? 'text-secondary' : 'text-danger'}`}>
+                          {recentMedicationRecords[0].content.completed ? '✓ 已完成' : '✗ 未完成'}
+                        </span>
+                      </p>
+                    </button>
+                  )}
+                  {recentAbnormalRecords.length > 0 && (
+                    <button
+                      onClick={() => setActiveTab('recent')}
+                      className="w-full text-left p-3 bg-white rounded-xl hover:bg-yellow-100 transition-colors"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4 text-danger" />
+                          <span className="font-medium text-danger">最新异常</span>
+                        </div>
+                        <span className="text-xs text-muted">
+                          {dayjs(recentAbnormalRecords[0].recordTime).format('MM/DD HH:mm')}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted">
+                        {recentAbnormalRecords[0].type === 'allergy' ? '过敏反应' : 
+                         recentAbnormalRecords[0].type === 'vomit' ? '呕吐记录' : '异常标记'}
+                        {recentAbnormalRecords[0].content.description && ` · ${recentAbnormalRecords[0].content.description.slice(0, 20)}`}
+                      </p>
+                    </button>
+                  )}
+                </div>
+              )}
+              
               <div className="card">
                 <h3 className="font-bold text-text mb-4">基本信息</h3>
                 <div className="space-y-4">

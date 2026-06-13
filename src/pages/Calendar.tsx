@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useStore } from '@/store';
 import Header from '@/components/Header';
-import { ChevronLeft, ChevronRight, Clock, CheckCircle2, Circle, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, CheckCircle2, Circle, AlertCircle, Users } from 'lucide-react';
 import dayjs from 'dayjs';
 
 export default function Calendar() {
@@ -9,9 +9,11 @@ export default function Calendar() {
   const records = useStore((state) => state.records);
   const tasks = useStore((state) => state.tasks);
   const reminders = useStore((state) => state.reminders);
+  const members = useStore((state) => state.members);
   
   const [currentDate, setCurrentDate] = useState(dayjs());
   const [selectedDate, setSelectedDate] = useState(dayjs());
+  const [selectedMemberId, setSelectedMemberId] = useState<string>('all');
   
   const startOfMonth = currentDate.startOf('month');
   const endOfMonth = currentDate.endOf('month');
@@ -41,9 +43,12 @@ export default function Calendar() {
       case 'weekly':
         return reminder.weekDays?.includes(dayOfWeek) || false;
       case 'monthly':
-        return dayOfMonth === 1;
+        const reminderDay = reminder.repeatDay || 1;
+        return dayOfMonth === reminderDay || (dayOfMonth === 1 && reminderDay > daysInMonth);
       case 'custom':
-        return date.diff(dayjs(reminder.createdAt), 'day') % (reminder.repeatInterval || 1) === 0;
+        if (!reminder.repeatInterval || reminder.repeatInterval <= 0) return false;
+        const daysSinceCreation = date.diff(dayjs(reminder.createdAt), 'day');
+        return daysSinceCreation >= 0 && daysSinceCreation % reminder.repeatInterval === 0;
       default:
         return false;
     }
@@ -81,7 +86,7 @@ export default function Calendar() {
       .filter((r) => dayjs(r.recordTime).isSame(selectedDate, 'day'))
       .sort((a, b) => new Date(b.recordTime).getTime() - new Date(a.recordTime).getTime());
     
-    const dayTasks = tasks
+    let dayTasks = tasks
       .filter((t) => dayjs(t.dueDate).isSame(selectedDate, 'day'))
       .sort((a, b) => {
         if (a.status === 'completed' && b.status !== 'completed') return 1;
@@ -89,10 +94,22 @@ export default function Calendar() {
         return 0;
       });
     
-    const dayReminders = reminders.filter((rem) => checkReminderHit(rem, selectedDate));
+    if (selectedMemberId !== 'all') {
+      dayTasks = dayTasks.filter((t) => t.assignedTo === selectedMemberId);
+    }
+    
+    let dayReminders = reminders.filter((rem) => checkReminderHit(rem, selectedDate));
+    
+    if (selectedMemberId !== 'all') {
+      dayReminders = dayReminders.filter((rem) => !rem.petId || 
+        pets.some((p) => p.id === rem.petId && 
+          tasks.some((t) => t.petId === p.id && t.assignedTo === selectedMemberId)
+        )
+      );
+    }
     
     return { records: dayRecords, tasks: dayTasks, reminders: dayReminders };
-  }, [selectedDate, records, tasks, reminders]);
+  }, [selectedDate, records, tasks, reminders, selectedMemberId, pets]);
   
   const handlePrevMonth = () => {
     setCurrentDate(currentDate.subtract(1, 'month'));
@@ -134,7 +151,7 @@ export default function Calendar() {
       
       <div className="px-4 py-4">
         <div className="card mb-4">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-2">
             <button
               onClick={handlePrevMonth}
               className="p-2 hover:bg-gray-50 rounded-lg transition-colors"
@@ -158,6 +175,33 @@ export default function Calendar() {
             >
               <ChevronRight className="w-5 h-5" />
             </button>
+          </div>
+          
+          <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2 mb-2">
+            <button
+              onClick={() => setSelectedMemberId('all')}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                selectedMemberId === 'all'
+                  ? 'bg-primary text-white'
+                  : 'bg-gray-100 text-muted'
+              }`}
+            >
+              全部成员
+            </button>
+            {members.map((member) => (
+              <button
+                key={member.id}
+                onClick={() => setSelectedMemberId(member.id)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all flex items-center gap-1 ${
+                  selectedMemberId === member.id
+                    ? 'bg-primary text-white'
+                    : 'bg-gray-100 text-muted'
+                }`}
+              >
+                <Users className="w-3 h-3" />
+                {member.name}
+              </button>
+            ))}
           </div>
           
           <div className="grid grid-cols-7 gap-1 mb-2">
@@ -216,6 +260,12 @@ export default function Calendar() {
           </div>
           
           <div className="flex justify-center gap-4 mt-4 text-xs">
+            {selectedMemberId !== 'all' && (
+              <div className="flex items-center gap-1 text-primary">
+                <Users className="w-3 h-3" />
+                <span>{members.find((m) => m.id === selectedMemberId)?.name}</span>
+              </div>
+            )}
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full bg-warning" />
               <span className="text-muted">待办</span>

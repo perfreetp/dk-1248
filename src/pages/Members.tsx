@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useStore } from '@/store';
 import Header from '@/components/Header';
 import { Task, TaskType, TaskPriority } from '@/types';
 import { 
   User, Trash2, CheckCircle2, Circle, Clock, 
-  Plus, AlertCircle, Star 
+  Plus, AlertCircle, Star, ArrowLeft, List
 } from 'lucide-react';
 import dayjs from 'dayjs';
 
@@ -32,6 +32,7 @@ export default function Members() {
   const completeTask = useStore((state) => state.completeTask);
   
   const [showAddTask, setShowAddTask] = useState(false);
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [newTask, setNewTask] = useState({
     title: '',
     type: 'feed' as TaskType,
@@ -40,6 +41,19 @@ export default function Members() {
     priority: 'normal' as TaskPriority,
     dueDate: dayjs().add(1, 'day').format('YYYY-MM-DD'),
   });
+  
+  const selectedMember = useMemo(() => {
+    return members.find((m) => m.id === selectedMemberId);
+  }, [members, selectedMemberId]);
+  
+  const memberTasks = useMemo(() => {
+    if (!selectedMemberId) return { pending: [], completed: [] };
+    const memberTaskList = tasks.filter((t) => t.assignedTo === selectedMemberId);
+    return {
+      pending: memberTaskList.filter((t) => t.status !== 'completed'),
+      completed: memberTaskList.filter((t) => t.status === 'completed').slice(0, 20),
+    };
+  }, [tasks, selectedMemberId]);
   
   const pendingTasks = tasks.filter((t) => t.status !== 'completed');
   const completedTasks = tasks.filter((t) => t.status === 'completed').slice(0, 5);
@@ -67,6 +81,13 @@ export default function Members() {
     });
   };
   
+  const getMemberTaskStats = (memberId: string) => {
+    const memberTaskList = tasks.filter((t) => t.assignedTo === memberId);
+    const pending = memberTaskList.filter((t) => t.status !== 'completed').length;
+    const completed = memberTaskList.filter((t) => t.status === 'completed').length;
+    return { pending, completed, total: memberTaskList.length };
+  };
+  
   return (
     <div>
       <Header
@@ -85,26 +106,138 @@ export default function Members() {
         <div>
           <h2 className="text-lg font-bold text-text mb-3">家庭成员</h2>
           <div className="grid grid-cols-3 gap-3">
-            {members.map((member) => (
-              <div key={member.id} className="card text-center">
-                <div className="w-16 h-16 mx-auto mb-2 rounded-full bg-primary bg-opacity-10 flex items-center justify-center">
-                  <User className="w-8 h-8 text-primary" />
-                </div>
-                <h3 className="font-bold text-text">{member.name}</h3>
-                <p className="text-xs text-muted mb-2">
-                  {member.role === 'owner' ? '管理员' : '成员'}
-                </p>
-                <div className="text-xs text-muted">
-                  <div>完成任务: {member.stats.completedTasks}</div>
-                  <div className="text-secondary">
+            {members.map((member) => {
+              const stats = getMemberTaskStats(member.id);
+              return (
+                <div 
+                  key={member.id} 
+                  className="card text-center cursor-pointer hover:shadow-lg transition-shadow"
+                  onClick={() => setSelectedMemberId(member.id)}
+                >
+                  <div className="w-16 h-16 mx-auto mb-2 rounded-full bg-primary bg-opacity-10 flex items-center justify-center">
+                    <User className="w-8 h-8 text-primary" />
+                  </div>
+                  <h3 className="font-bold text-text">{member.name}</h3>
+                  <p className="text-xs text-muted mb-2">
+                    {member.role === 'owner' ? '管理员' : '成员'}
+                  </p>
+                  <div className="flex justify-center gap-2 text-xs">
+                    <span className="bg-warning bg-opacity-20 text-warning px-2 py-0.5 rounded-full">
+                      {stats.pending} 待办
+                    </span>
+                    <span className="bg-secondary bg-opacity-20 text-secondary px-2 py-0.5 rounded-full">
+                      {stats.completed} 已完成
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted mt-2">
                     按时率: {(member.stats.onTimeRate * 100).toFixed(0)}%
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
         
+        {selectedMember && (
+          <div className="card bg-primary bg-opacity-5 border-2 border-primary">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-primary bg-opacity-20 flex items-center justify-center">
+                  <User className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-text text-lg">{selectedMember.name}</h3>
+                  <p className="text-sm text-muted">
+                    {memberTasks.pending.length} 项待办 · {memberTasks.completed.length} 项已完成
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedMemberId(null)}
+                className="text-primary text-sm flex items-center gap-1"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                返回
+              </button>
+            </div>
+            
+            {memberTasks.pending.length > 0 && (
+              <div className="mb-4">
+                <h4 className="font-bold text-text mb-2 flex items-center gap-2">
+                  <Circle className="w-4 h-4 text-warning" />
+                  待办任务
+                </h4>
+                <div className="space-y-2">
+                  {memberTasks.pending.map((task) => {
+                    const pet = pets.find((p) => p.id === task.petId);
+                    const priority = priorityConfig[task.priority];
+                    const isOverdue = dayjs(task.dueDate).isBefore(dayjs(), 'day');
+                    
+                    return (
+                      <div
+                        key={task.id}
+                        className={`p-3 rounded-lg ${isOverdue ? 'bg-danger bg-opacity-10 border border-danger' : 'bg-white'}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-text">{task.title}</p>
+                            <p className="text-xs text-muted">
+                              {taskTypeLabels[task.type]}{pet && ` · ${pet.name}`}
+                              <span className={`ml-2 ${isOverdue ? 'text-danger' : ''}`}>
+                                {isOverdue ? '已逾期' : dayjs(task.dueDate).format('MM/DD')}
+                              </span>
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => completeTask(task.id)}
+                            className="px-3 py-1 bg-secondary text-white rounded-full text-sm"
+                          >
+                            完成
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            
+            {memberTasks.completed.length > 0 && (
+              <div>
+                <h4 className="font-bold text-text mb-2 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-secondary" />
+                  最近完成
+                </h4>
+                <div className="space-y-1">
+                  {memberTasks.completed.slice(0, 10).map((task) => {
+                    const pet = pets.find((p) => p.id === task.petId);
+                    
+                    return (
+                      <div key={task.id} className="p-2 bg-white rounded-lg flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-secondary" />
+                          <span className="text-sm text-muted line-through">{task.title}</span>
+                          {pet && <span className="text-xs text-muted">· {pet.name}</span>}
+                        </div>
+                        <span className="text-xs text-muted">
+                          {task.completedAt ? dayjs(task.completedAt).format('MM/DD HH:mm') : '-'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            
+            {memberTasks.pending.length === 0 && memberTasks.completed.length === 0 && (
+              <div className="text-center py-4 text-muted">
+                暂无任务记录
+              </div>
+            )}
+          </div>
+        )}
+        
+        {!selectedMember && (
         <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-bold text-text">待办任务</h2>
